@@ -324,7 +324,7 @@ Return ONLY the JSON object, no other text.
 """
     try:
         response = claude.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -371,7 +371,7 @@ Return ONLY the JSON array, no other text.
 """
     try:
         response = claude.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=1000,
             messages=[{"role": "user", "content": prompt}]
         )
@@ -409,7 +409,7 @@ Return ONLY the JSON object, no other text.
 """
     try:
         response = claude.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=1000,
             messages=[{
                 "role": "user",
