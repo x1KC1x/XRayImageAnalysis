@@ -286,10 +286,10 @@ footer strong{color:var(--txt-m)}
   <!-- AI ASSISTANT -->
   <div class="tab-panel" id="tab-ai">
     <div class="sec">AI Assistant</div>
-    <p style="font-size:12px;color:var(--txt-m);margin-bottom:14px">Ask questions about this inspection data in plain English. Powered by Claude (Anthropic). Enter your Anthropic API key to activate — key is used only in your browser and never stored.</p>
+    <p style="font-size:12px;color:var(--txt-m);margin-bottom:14px">Ask questions about this inspection data in plain English. Powered by Claude via the Devon AI Gateway. Enter your Devon AI Gateway key to activate — key is used only in your browser and never stored.</p>
     <div class="key-bar">
-      <span style="font-size:10px;font-weight:600;color:var(--txt-l);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap">API KEY</span>
-      <input type="password" id="apiKeyIn" placeholder="sk-ant-..." />
+      <span style="font-size:10px;font-weight:600;color:var(--txt-l);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap">GATEWAY KEY</span>
+      <input type="password" id="apiKeyIn" placeholder="Devon AI Gateway key..." />
       <button class="btn-teal" onclick="saveKey()">Connect</button>
       <span id="keyStat" style="font-size:11px;color:var(--min)"></span>
     </div>
@@ -308,7 +308,7 @@ footer strong{color:var(--txt-m)}
       <div class="chat-msgs" id="chatMsgs">
         <div class="msg assistant">
           <div class="msg-av">AI</div>
-          <div class="msg-bbl">Hello! I'm your Asset Integrity assistant. I have full context on all 19 inspected wells across 5 facilities — 167 monitored DMLs from November 2024 through January 2025.<br><br>I can help you understand risk levels, identify patterns, prioritize repairs, or answer specific questions about any DML or facility. Enter your API key above to get started.</div>
+          <div class="msg-bbl">Hello! I'm your Asset Integrity assistant, powered by Claude via the Devon AI Gateway. I have full context on all 19 inspected wells across 5 facilities — 167 monitored DMLs from November 2024 through January 2025.<br><br>I can help you understand risk levels, identify patterns, prioritize repairs, or answer specific questions about any DML or facility. Enter your Devon AI Gateway key above to get started.</div>
         </div>
       </div>
       <div class="chat-row">
@@ -382,6 +382,7 @@ new Chart(document.getElementById('baseChart'),{type:'bar',data:{labels:WELLS.ma
 const lvDMLs=[{l:'5H·006',v:0.084},{l:'2H·003',v:0.103},{l:'7H·006',v:0.112},{l:'8H·003',v:0.135},{l:'11H',v:0.143},{l:'1H',v:0.155},{l:'N.Hdr',v:0.172},{l:'E.Hdr',v:0.187},{l:'10H',v:0.189},{l:'4H',v:0.192},{l:'6H',v:0.193}].sort((a,b)=>a.v-b.v);
 new Chart(document.getElementById('distChart'),{type:'bar',data:{labels:lvDMLs.map(d=>d.l),datasets:[{data:lvDMLs.map(d=>d.v),backgroundColor:lvDMLs.map(d=>d.v<0.100?'#e84040':d.v<0.110?'#f4831f':d.v<0.200?'#f0b429':'#34c96c'),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw.toFixed(3)+'"'}}},scales:{x:{ticks:{font:{size:10,family:'IBM Plex Mono'},maxRotation:45},grid:{display:false}},y:{min:0.050,max:0.280,ticks:{callback:v=>v.toFixed(2)+'"',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
 
+const GATEWAY='https://aigw.dev.dvn.com/anthropic/v1/chat/claude-sonnet-latest';
 let apiKey='';
 const SYS=`You are an Asset Integrity AI assistant for Devon Energy DBBU (Delaware Basin Business Unit). You have full context on the pipeline inspection dashboard data below.\n\nINSPECTION DATA (Nov 2024 – Jan 2025): 5 facilities, 19 wells, 167 monitored DMLs.\n\nCRITICAL: UL Loveland 5H DML-006 UT=0.084" — BELOW 0.100" threshold. Devon PIC must be notified immediately. Document misrated as Moderate; overridden per minimum wall thickness rule.\n\nNEAR-CRITICAL ALERTS (below 0.110"):\n- UL Loveland 2H DML-003: 0.103" (very close to critical)\n- UL Loveland 7H DML-006: 0.112"\n- Lizzy 26-1H 1H DML-013: 0.113"\n- Lizzy 26-1H 1H DML-010: 0.116"\n- Lizzy 26-1H Header DML-010: 0.131"\n\nFACILITIES:\n- Stray Cat 8 CTB-5 (WO 21374743): 1 well, 9 DMLs, Minor — Legacy service, Cimarron Energy, built 2024\n- Lizzy 26-1H Pad (WO 21418606): 3 wells, 31 DMLs, Severe — Mistras Group, Oct 2024\n- Ren State 13-14A Pad (WO 21422193): 1 well, 3 DMLs, Moderate — Mistras Group, Jan 2025\n- UL Loveland 1920-17-1H Pad (WO 21427023): 11 wells, 79 DMLs, Critical — Mistras Group, Dec 2024–Jan 2025, Parker Welding, built 2018\n- UL Cathedral 1516-17H Pad (WO 21390346): 3 wells, 75 DMLs, Moderate/Minor — Mistras, Nov–Dec 2024, Parker Welding, built 2020\n\nGRADING: Critical <0.100" (notify PIC), Severe 51%+ wall loss, Moderate 26-50%, Minor 0-25%\nSERVICE INTERVAL: 6-month RT re-examination for all monitored DMLs.\n\nAnswer concisely and professionally. Always flag safety-critical items.`;
 
@@ -392,15 +393,17 @@ const hist=[];
 async function sendMsg(){
   const inp=document.getElementById('chatIn');const txt=inp.value.trim();
   if(!txt)return;
-  if(!apiKey){addMsg('assistant','Please enter your Anthropic API key above to activate the AI assistant.');return;}
+  if(!apiKey){addMsg('assistant','Please enter your Devon AI Gateway key above to activate the AI assistant.');return;}
   addMsg('user',txt);inp.value='';hist.push({role:'user',content:txt});
   const btn=document.getElementById('sendBtn');btn.disabled=true;btn.textContent='...';
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:hist})});
+    const res=await fetch(GATEWAY,{method:'POST',headers:{'Content-Type':'application/json','X-API-KEY':apiKey},body:JSON.stringify({max_tokens:1000,system:SYS,messages:hist})});
     const data=await res.json();
-    if(data.content&&data.content[0]){const reply=data.content[0].text;addMsg('assistant',reply);hist.push({role:'assistant',content:reply});}
-    else{addMsg('assistant','Error: '+(data.error?.message||'Check your API key and try again.'));}
-  }catch(e){addMsg('assistant','Connection error. Ensure your API key is valid.');}
+    // Handle both Anthropic format (content[]) and OpenAI-compatible format (choices[])
+    const reply=data.content?.[0]?.text || data.choices?.[0]?.message?.content || null;
+    if(reply){addMsg('assistant',reply);hist.push({role:'assistant',content:reply});}
+    else{addMsg('assistant','Error: '+(data.error?.message||'Unexpected response from Devon AI Gateway. Check your key and try again.'));}
+  }catch(e){addMsg('assistant','Connection error reaching Devon AI Gateway ('+GATEWAY+'). Check your key and network.');}
   btn.disabled=false;btn.textContent='Send';
 }
 document.getElementById('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
