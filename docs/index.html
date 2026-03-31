@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asset Integrity Dashboard — Devon Energy</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#12141c; --surf:#1c1f2e; --surf2:#22263a; --surf3:#2a2f45;
+  --border:#2e3350; --border-lt:#3a4060;
+  --red:#e8321a; --red-lt:#ff4f35;
+  --teal:#00b4cc; --teal-lt:#00d4ee; --teal-dim:rgba(0,180,204,.12);
+  --txt:#e8eaf0; --txt-m:#8890a8; --txt-l:#505870;
+  --crit:#e84040; --crit-bg:rgba(232,64,64,.12); --crit-border:rgba(232,64,64,.3);
+  --sev:#f4831f; --sev-bg:rgba(244,131,31,.12);
+  --mod:#f0b429; --mod-bg:rgba(240,180,41,.12);
+  --min:#34c96c; --min-bg:rgba(52,201,108,.12);
+  --anom:#a78bfa; --anom-bg:rgba(167,139,250,.12);
+  --r:8px; --r-lg:12px; --sh:0 2px 12px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.5;min-height:100vh}
+
+header{background:var(--surf);padding:0 24px;display:flex;align-items:center;justify-content:space-between;height:60px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border);box-shadow:0 2px 16px rgba(0,0,0,.4)}
+.logo{display:flex;align-items:center;gap:12px}
+.logo-mark{width:34px;height:26px;display:flex;flex-direction:column;justify-content:space-between;flex-shrink:0}
+.logo-mark span{display:block;height:5px;border-radius:2px;background:var(--red)}
+.logo-mark span:nth-child(1){width:100%}
+.logo-mark span:nth-child(2){width:70%}
+.logo-mark span:nth-child(3){width:46%}
+.logo-company{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:21px;color:var(--txt);letter-spacing:.05em;text-transform:uppercase;line-height:1}
+.logo-sub{font-size:10px;color:var(--txt-m);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+.hdr-right{display:flex;align-items:center;gap:18px}
+.hdr-crit{background:var(--crit-bg);border:1px solid var(--crit-border);border-radius:20px;padding:4px 12px;font-size:11px;font-weight:600;color:var(--crit);display:flex;align-items:center;gap:6px;white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--crit);flex-shrink:0;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.15}}
+.hdr-meta{font-size:11px;color:var(--txt-l);text-align:right;line-height:1.75}
+.hdr-meta strong{color:var(--txt-m);font-weight:500}
+
+.wrap{max-width:1440px;margin:0 auto;padding:24px}
+
+.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.mc{background:var(--surf);border-radius:var(--r-lg);padding:16px 18px;border:1px solid var(--border);position:relative;overflow:hidden}
+.mc::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--border-lt)}
+.mc.accent::before{background:var(--teal)}
+.mc.warn::before{background:var(--sev)}
+.mc.alert-mc::before{background:var(--crit)}
+.mc-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--txt-m);font-weight:600;margin-bottom:6px}
+.mc-val{font-family:'Barlow Condensed',sans-serif;font-size:36px;font-weight:700;color:var(--txt);line-height:1;margin-bottom:4px}
+.mc.alert-mc .mc-val{color:var(--crit)}
+.mc-sub{font-size:11px;color:var(--txt-l)}
+
+.banner{border-radius:var(--r);padding:11px 16px;margin-bottom:18px;font-size:12px;display:flex;align-items:center;gap:10px;line-height:1.6}
+.banner.crit{background:var(--crit-bg);border:1px solid var(--crit-border);border-left:3px solid var(--crit);color:#ffb3b3}
+.banner.crit strong{color:#ff8080}
+
+.tabs-wrap{background:var(--surf);border-radius:var(--r-lg);border:1px solid var(--border);overflow:hidden}
+.tabs-nav{display:flex;border-bottom:1px solid var(--border);background:var(--bg);overflow-x:auto;padding:0 4px}
+.tab-btn{padding:13px 18px;font-size:12px;font-weight:500;color:var(--txt-m);background:none;border:none;border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;font-family:'IBM Plex Sans',sans-serif;transition:color .15s,border-color .15s;letter-spacing:.02em}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--teal);border-bottom-color:var(--teal);font-weight:600}
+.tab-panel{display:none;padding:24px}
+.tab-panel.active{display:block}
+
+.sec{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:600;color:var(--txt-m);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;white-space:nowrap}
+.bc{background:var(--crit-bg);color:var(--crit);border:1px solid var(--crit-border)}
+.bs{background:var(--sev-bg);color:var(--sev)}
+.bm{background:var(--mod-bg);color:var(--mod)}
+.bi{background:var(--min-bg);color:var(--min)}
+.ba{background:var(--anom-bg);color:var(--anom)}
+.bn{background:var(--teal-dim);color:var(--teal)}
+
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:9px 12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--txt-l);border-bottom:1px solid var(--border);background:var(--bg);white-space:nowrap}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;color:var(--txt)}
+.tbl tr:hover td{background:var(--surf2)}
+.tbl tr:last-child td{border-bottom:none}
+
+.filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filters input,.filters select{border:1px solid var(--border);border-radius:var(--r);padding:7px 12px;font-size:12px;font-family:'IBM Plex Sans',sans-serif;color:var(--txt);background:var(--surf2);outline:none;transition:border-color .15s}
+.filters input:focus,.filters select:focus{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal-dim)}
+.filters input{flex:1;min-width:160px}
+.filters select option{background:var(--surf2)}
+
+.fac-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.fac-card{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r-lg);padding:18px;transition:border-color .15s}
+.fac-card:hover{border-color:var(--border-lt)}
+.fac-card.hascrit{border-color:var(--crit-border)}
+.fac-name{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:600;color:var(--txt);line-height:1.2}
+.fac-meta{font-size:11px;color:var(--txt-m);margin-top:3px}
+.fac-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.fsl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--txt-l)}
+.fsv{font-family:'Barlow Condensed',sans-serif;font-size:24px;font-weight:600;color:var(--txt)}
+
+.al-hdr,.al-row{display:grid;grid-template-columns:110px 1fr 80px 90px 1fr;gap:12px;padding:10px 16px;align-items:center;font-size:12px}
+.al-hdr{background:var(--bg);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--txt-l)}
+.al-row{border-bottom:1px solid var(--border)}
+.al-row:hover{background:var(--surf2)}
+.al-row:last-child{border-bottom:none}
+.al-row.critrow{background:rgba(232,64,64,.05)}
+.mono{font-family:'IBM Plex Mono',monospace}
+
+.bl-note{background:var(--teal-dim);border:1px solid rgba(0,180,204,.2);border-radius:var(--r);padding:10px 14px;font-size:11px;color:var(--teal);margin-bottom:20px;display:flex;align-items:flex-start;gap:8px;line-height:1.6}
+
+.chat-wrap{display:flex;flex-direction:column;height:480px}
+.key-bar{display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
+.key-bar input{flex:1;min-width:160px;border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--txt);background:var(--surf2);outline:none}
+.key-bar input:focus{border-color:var(--teal)}
+.btn-teal{background:var(--teal);color:#0a1420;border:none;border-radius:var(--r);padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:'IBM Plex Sans',sans-serif}
+.btn-teal:hover{background:var(--teal-lt)}
+.btn-teal:disabled{opacity:.4;cursor:not-allowed}
+.chat-msgs{flex:1;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r);padding:16px;background:var(--bg);margin-bottom:12px;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:10px;align-items:flex-start}
+.msg.user{flex-direction:row-reverse}
+.msg-av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
+.msg.assistant .msg-av{background:var(--teal);color:#0a1420}
+.msg.user .msg-av{background:var(--red);color:#fff}
+.msg-bbl{max-width:75%;padding:10px 14px;border-radius:12px;font-size:12px;line-height:1.65}
+.msg.assistant .msg-bbl{background:var(--surf2);border:1px solid var(--border);color:var(--txt)}
+.msg.user .msg-bbl{background:var(--surf3);color:var(--txt)}
+.chat-row{display:flex;gap:8px}
+.chat-in{flex:1;border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;font-size:13px;font-family:'IBM Plex Sans',sans-serif;outline:none;resize:none;background:var(--surf2);color:var(--txt)}
+.chat-in:focus{border-color:var(--teal)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.chip{background:var(--surf2);border:1px solid var(--border);border-radius:20px;padding:5px 12px;font-size:11px;cursor:pointer;color:var(--txt-m);transition:all .15s}
+.chip:hover{background:var(--teal-dim);color:var(--teal);border-color:rgba(0,180,204,.3)}
+
+footer{text-align:center;padding:20px;font-size:11px;color:var(--txt-l)}
+footer strong{color:var(--txt-m)}
+
+@media(max-width:900px){.metrics{grid-template-columns:repeat(3,1fr)}.al-row,.al-hdr{grid-template-columns:100px 1fr 70px}}
+@media(max-width:600px){.metrics{grid-template-columns:repeat(2,1fr)}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark"><span></span><span></span><span></span></div>
+    <div>
+      <div class="logo-company">Devon</div>
+      <div class="logo-sub">Asset Integrity · Pipeline Inspection Dashboard</div>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <div class="hdr-crit"><div class="dot"></div>1 Critical Alert</div>
+    <div class="hdr-meta"><strong>DBBU · Monument Draw</strong>Dashboard v1.0 · March 2026</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<div class="metrics">
+  <div class="mc accent"><div class="mc-lbl">Facilities</div><div class="mc-val">5</div><div class="mc-sub">Monument Draw Region</div></div>
+  <div class="mc accent"><div class="mc-lbl">Wells Inspected</div><div class="mc-val">19</div><div class="mc-sub">Nov 2024 – Jan 2025</div></div>
+  <div class="mc accent"><div class="mc-lbl">Monitored DMLs</div><div class="mc-val">167</div><div class="mc-sub">Active monitoring</div></div>
+  <div class="mc warn"><div class="mc-lbl">Near-Critical</div><div class="mc-val" style="color:var(--sev)">6</div><div class="mc-sub">Wall thickness &lt; 0.110"</div></div>
+  <div class="mc alert-mc"><div class="mc-lbl">Critical Alerts</div><div class="mc-val">1</div><div class="mc-sub">Immediate action required</div></div>
+</div>
+
+<div class="banner crit">
+  <div class="dot"></div>
+  <div><strong>CRITICAL ALERT — Devon PIC Notification Required:&nbsp;</strong>UL Loveland 1920-17-1H Pad · Well 5H · DML-006 (3" 90 Elbow / Pipe/Olet XH) · UT Thickness <strong>0.084"</strong> — below 0.100" critical threshold.</div>
+</div>
+
+<div class="tabs-wrap">
+  <div class="tabs-nav">
+    <button class="tab-btn active" onclick="showTab('overview',this)">Overview</button>
+    <button class="tab-btn" onclick="showTab('facilities',this)">By Facility</button>
+    <button class="tab-btn" onclick="showTab('data',this)">Inspection Data</button>
+    <button class="tab-btn" onclick="showTab('alerts',this)">Near-Critical Alerts</button>
+    <button class="tab-btn" onclick="showTab('baseline',this)">Thickness Baseline</button>
+    <button class="tab-btn" onclick="showTab('ai',this)">AI Assistant</button>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="tab-panel active" id="tab-overview">
+    <div class="sec">Monitored DMLs by Well</div>
+    <div style="display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;font-size:11px;color:var(--txt-m)">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--crit);display:inline-block"></span>Critical</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--sev);display:inline-block"></span>Severe</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--mod);display:inline-block"></span>Moderate</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:var(--min);display:inline-block"></span>Minor</span>
+    </div>
+    <div style="position:relative;width:100%;height:740px"><canvas id="overviewChart"></canvas></div>
+  </div>
+
+  <!-- FACILITIES -->
+  <div class="tab-panel" id="tab-facilities">
+    <div class="sec">Facility Summary</div>
+    <div class="fac-grid" id="facGrid"></div>
+  </div>
+
+  <!-- DATA -->
+  <div class="tab-panel" id="tab-data">
+    <div class="sec">Inspection Records</div>
+    <div class="filters">
+      <input type="text" id="searchIn" placeholder="Search facility or well..." oninput="filterData()">
+      <select id="critFilt" onchange="filterData()"><option value="">All criteria</option><option>Critical</option><option>Severe</option><option>Moderate</option><option>Minor</option></select>
+      <select id="facFilt" onchange="filterData()"><option value="">All facilities</option><option>Stray Cat</option><option>Lizzy</option><option>Ren State</option><option>UL Loveland</option><option>UL Cathedral</option></select>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th>Facility</th><th>WO#</th><th>Well</th><th>Date</th><th>Service Provider</th><th style="text-align:center">Monitored DMLs</th><th>Highest Criteria</th><th>Flags</th></tr></thead>
+        <tbody id="tblBody"></tbody>
+      </table>
+    </div>
+    <p id="rowCnt" style="font-size:11px;color:var(--txt-m);margin-top:10px;padding-top:10px;border-top:1px solid var(--border)"></p>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="tab-panel" id="tab-alerts">
+    <div class="sec">Near-Critical Alerts</div>
+    <p style="font-size:12px;color:var(--txt-m);margin-bottom:16px">Parts with minimum UT wall thickness at or below 0.110" — sorted thinnest first. Critical threshold is 0.100".</p>
+    <div class="al-hdr"><span>Status</span><span>Location</span><span>DML</span><span>UT</span><span>Note</span></div>
+    <div class="al-row critrow">
+      <span><span class="badge bc">⚠ Critical</span></span>
+      <span><strong>UL Loveland 5H</strong><br><span style="font-size:11px;color:var(--txt-m)">3" 90 Elbow / Pipe/Olet XH</span></span>
+      <span class="mono" style="font-size:11px">DML-006</span>
+      <span class="mono" style="color:var(--crit);font-weight:600">0.084"</span>
+      <span style="font-size:11px;color:#ff8080">Doc rated Moderate — overridden. Devon PIC notification required.</span>
+    </div>
+    <div class="al-row">
+      <span><span class="badge bm">Moderate</span></span>
+      <span><strong>UL Loveland 2H</strong><br><span style="font-size:11px;color:var(--txt-m)">3" Pipe/Olet XH</span></span>
+      <span class="mono" style="font-size:11px">DML-003</span>
+      <span class="mono" style="color:var(--sev);font-weight:600">0.103"</span>
+      <span style="font-size:11px;color:var(--txt-m)">Very close to 0.100" critical threshold — monitor closely.</span>
+    </div>
+    <div class="al-row">
+      <span><span class="badge bs">Severe</span></span>
+      <span><strong>UL Loveland 7H</strong><br><span style="font-size:11px;color:var(--txt-m)">3" 90 Elbow / 3" Pipe XH</span></span>
+      <span class="mono" style="font-size:11px">DML-006</span>
+      <span class="mono" style="font-weight:500">0.112"</span>
+      <span></span>
+    </div>
+    <div class="al-row">
+      <span><span class="badge bm">Moderate</span></span>
+      <span><strong>Lizzy 26-1H · 1H</strong><br><span style="font-size:11px;color:var(--txt-m)">2" Valve / KBMD</span></span>
+      <span class="mono" style="font-size:11px">DML-013</span>
+      <span class="mono" style="font-weight:500">0.113"</span>
+      <span></span>
+    </div>
+    <div class="al-row">
+      <span><span class="badge bm">Moderate</span></span>
+      <span><strong>Lizzy 26-1H · 1H</strong><br><span style="font-size:11px;color:var(--txt-m)">3" 90 Elbow / 3" Pipe XH</span></span>
+      <span class="mono" style="font-size:11px">DML-010</span>
+      <span class="mono" style="font-weight:500">0.116"</span>
+      <span></span>
+    </div>
+    <div class="al-row">
+      <span><span class="badge bs">Severe</span></span>
+      <span><strong>Lizzy 26-1H · Header</strong><br><span style="font-size:11px;color:var(--txt-m)">3" 90 Elbow / 3" Pipe XH</span></span>
+      <span class="mono" style="font-size:11px">DML-010</span>
+      <span class="mono" style="font-weight:500">0.131"</span>
+      <span></span>
+    </div>
+    <div style="margin-top:24px;padding:20px;background:var(--surf2);border-radius:var(--r);border:1px solid var(--border)">
+      <p style="font-size:11px;font-weight:600;color:var(--txt-m);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Near-Critical UT Readings — Gauge View</p>
+      <div style="position:relative;height:300px"><canvas id="alertChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- BASELINE -->
+  <div class="tab-panel" id="tab-baseline">
+    <div class="sec">Thickness Baseline</div>
+    <div class="bl-note">
+      <svg width="14" height="14" viewBox="0 0 16 16" style="flex-shrink:0;margin-top:1px"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5" fill="none"/><text x="8" y="12" text-anchor="middle" fill="currentColor" font-size="9" font-family="serif" font-weight="bold">i</text></svg>
+      <span><strong>Baseline inspection cycle recorded (Nov 2024 – Jan 2025).</strong> Minimum UT wall thickness is shown per well. Trend lines and rate-of-decline projections will populate automatically once subsequent inspection cycles are loaded.</span>
+    </div>
+    <div style="margin-bottom:36px">
+      <p style="font-size:11px;font-weight:600;color:var(--txt-m);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">Min UT Wall Thickness — All Wells (Baseline Cycle)</p>
+      <div style="position:relative;height:500px"><canvas id="baseChart"></canvas></div>
+    </div>
+    <div>
+      <p style="font-size:11px;font-weight:600;color:var(--txt-m);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">UL Loveland Pad — Min UT Distribution</p>
+      <p style="font-size:11px;color:var(--txt-l);margin-bottom:14px">Representative minimum UT readings from monitored DMLs across 11 wells.</p>
+      <div style="position:relative;height:320px"><canvas id="distChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- AI ASSISTANT -->
+  <div class="tab-panel" id="tab-ai">
+    <div class="sec">AI Assistant</div>
+    <p style="font-size:12px;color:var(--txt-m);margin-bottom:14px">Ask questions about this inspection data in plain English. Powered by Claude (Anthropic). Enter your Anthropic API key to activate — key is used only in your browser and never stored.</p>
+    <div class="key-bar">
+      <span style="font-size:10px;font-weight:600;color:var(--txt-l);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap">API KEY</span>
+      <input type="password" id="apiKeyIn" placeholder="sk-ant-..." />
+      <button class="btn-teal" onclick="saveKey()">Connect</button>
+      <span id="keyStat" style="font-size:11px;color:var(--min)"></span>
+    </div>
+    <div style="margin-bottom:10px">
+      <p style="font-size:10px;font-weight:600;color:var(--txt-l);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Suggested prompts</p>
+      <div class="chips">
+        <span class="chip" onclick="usePrompt(this)">Which wells are at highest risk right now?</span>
+        <span class="chip" onclick="usePrompt(this)">Summarize UL Loveland facility status</span>
+        <span class="chip" onclick="usePrompt(this)">Which DMLs need immediate repair?</span>
+        <span class="chip" onclick="usePrompt(this)">Compare Lizzy vs Cathedral results</span>
+        <span class="chip" onclick="usePrompt(this)">What patterns do you see across all facilities?</span>
+        <span class="chip" onclick="usePrompt(this)">How many DMLs are within 20% of critical?</span>
+      </div>
+    </div>
+    <div class="chat-wrap">
+      <div class="chat-msgs" id="chatMsgs">
+        <div class="msg assistant">
+          <div class="msg-av">AI</div>
+          <div class="msg-bbl">Hello! I'm your Asset Integrity assistant. I have full context on all 19 inspected wells across 5 facilities — 167 monitored DMLs from November 2024 through January 2025.<br><br>I can help you understand risk levels, identify patterns, prioritize repairs, or answer specific questions about any DML or facility. Enter your API key above to get started.</div>
+        </div>
+      </div>
+      <div class="chat-row">
+        <textarea class="chat-in" id="chatIn" rows="2" placeholder="Ask about inspection data, risk levels, repair priorities..."></textarea>
+        <button class="btn-teal" id="sendBtn" onclick="sendMsg()">Send</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Devon Energy Corporation &middot; DBBU Asset Integrity &middot; Digital Radiography Monitoring Program &middot; <strong>Confidential — Internal Use Only</strong><br>Dashboard v1.0 &middot; Data current as of January 2025 &middot; Built with Claude AI</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const WELLS=[
+  {fac:'Stray Cat 8 CTB-5',fs:'Stray Cat',wo:'21374743',well:'V105-703H',date:'11/06/2024',mon:9,crit:'Minor',svc:'Legacy',minUT:0.279},
+  {fac:'Lizzy 26-1H Pad',fs:'Lizzy',wo:'21418606',well:'Header',date:'10/29/2024',mon:10,crit:'Severe',svc:'Mistras Group',minUT:0.131},
+  {fac:'Lizzy 26-1H Pad',fs:'Lizzy',wo:'21418606',well:'421H',date:'10/30/2024',mon:11,crit:'Severe',svc:'Mistras Group',minUT:0.142},
+  {fac:'Lizzy 26-1H Pad',fs:'Lizzy',wo:'21418606',well:'1H',date:'10/29/2024',mon:10,crit:'Severe',svc:'Mistras Group',minUT:0.113},
+  {fac:'Ren State 13-14A Pad',fs:'Ren State',wo:'21422193',well:'V-109 304H',date:'01/16/2025',mon:3,crit:'Moderate',svc:'Mistras Group',minUT:0.185},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'N. Header',date:'12/20/2024',mon:17,crit:'Moderate',svc:'Mistras Group',minUT:0.172},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'E. Header',date:'12/19/2024',mon:6,crit:'Moderate',svc:'Mistras Group',minUT:0.187},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'1H',date:'01/08/2025',mon:6,crit:'Severe',svc:'Mistras Group',minUT:0.155},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'2H',date:'01/06/2025',mon:8,crit:'Moderate',svc:'Mistras Group',minUT:0.103},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'4H',date:'01/08/2025',mon:3,crit:'Moderate',svc:'Mistras Group',minUT:0.192},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'5H',date:'01/03/2025',mon:5,crit:'Critical',svc:'Mistras Group',minUT:0.084,flag:true},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'6H',date:'01/02/2025',mon:6,crit:'Moderate',svc:'Mistras Group',minUT:0.193},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'7H',date:'01/06/2025',mon:4,crit:'Moderate',svc:'Mistras Group',minUT:0.112},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'8H',date:'01/02/2025',mon:9,crit:'Severe',svc:'Mistras Group',minUT:0.135},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'10H',date:'01/10/2025',mon:2,crit:'Moderate',svc:'Mistras Group',minUT:0.189},
+  {fac:'UL Loveland 1920-17-1H Pad',fs:'UL Loveland',wo:'21427023',well:'11H',date:'01/13/2025',mon:7,crit:'Severe',svc:'Mistras Group',minUT:0.143},
+  {fac:'UL Cathedral 1516-17H Pad',fs:'UL Cathedral',wo:'21390346',well:'4H',date:'12/2024',mon:24,crit:'Moderate',svc:'Mistras',minUT:0.198,isNew:true},
+  {fac:'UL Cathedral 1516-17H Pad',fs:'UL Cathedral',wo:'21390346',well:'3H',date:'12/2024',mon:25,crit:'Minor',svc:'Mistras',minUT:0.193,isNew:true},
+  {fac:'UL Cathedral 1516-17H Pad',fs:'UL Cathedral',wo:'21390346',well:'7H',date:'11/2024',mon:26,crit:'Minor',svc:'Mistras',minUT:0.198,isNew:true},
+];
+const FACS=[
+  {name:'Stray Cat 8 CTB-5',wo:'21374743',svc:'Legacy',dates:'Nov 2024',wells:1,dmls:9,crit:'Minor',hasCrit:false,desc:'PW 3-Phase Separator · Cimarron Energy · Built 2024'},
+  {name:'Lizzy 26-1H Pad',wo:'21418606',svc:'Mistras Group',dates:'Oct 2024',wells:3,dmls:31,crit:'Severe',hasCrit:false,desc:'Parker Welding separators · Multiple severe-grade DMLs'},
+  {name:'Ren State 13-14A Pad',wo:'21422193',svc:'Mistras Group',dates:'Jan 2025',wells:1,dmls:3,crit:'Moderate',hasCrit:false,desc:'Parker Welding · Built 2018 · Limited monitored DMLs'},
+  {name:'UL Loveland 1920-17-1H Pad',wo:'21427023',svc:'Mistras Group',dates:'Dec 2024 – Jan 2025',wells:11,dmls:79,crit:'Critical',hasCrit:true,desc:'Parker Welding · Built 2018 · CRITICAL alert on Well 5H'},
+  {name:'UL Cathedral 1516-17H Pad',wo:'21390346',svc:'Mistras',dates:'Nov – Dec 2024',wells:3,dmls:75,crit:'Moderate',hasCrit:false,desc:'Parker Welding · Built 2020 · All DMLs Minor–Moderate'},
+];
+const CC={Critical:'#e84040',Severe:'#f4831f',Moderate:'#f0b429',Minor:'#34c96c',Anomaly:'#a78bfa'};
+const BC={Critical:'bc',Severe:'bs',Moderate:'bm',Minor:'bi',Anomaly:'ba'};
+
+Chart.defaults.color='#8890a8';
+Chart.defaults.borderColor='#2e3350';
+
+function showTab(id,btn){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+new Chart(document.getElementById('overviewChart'),{type:'bar',data:{labels:WELLS.map(w=>w.fs+' · '+w.well),datasets:[{data:WELLS.map(w=>w.mon),backgroundColor:WELLS.map(w=>CC[w.crit]||'#888'),borderRadius:4,borderSkipped:false}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>WELLS[i[0].dataIndex].fac+' — '+WELLS[i[0].dataIndex].well,label:i=>{const w=WELLS[i.dataIndex];return[w.mon+' monitored DMLs','Criteria: '+w.crit,'Min UT: '+w.minUT.toFixed(3)+'"',w.flag?'⚠ CRITICAL — Devon PIC required':''].filter(Boolean);}}}},scales:{x:{beginAtZero:true,ticks:{stepSize:5,font:{size:11,family:'IBM Plex Mono'}},grid:{color:'rgba(255,255,255,0.04)'},title:{display:true,text:'Number of Monitored DMLs',font:{size:11},color:'#8890a8'}},y:{ticks:{font:{size:11,family:'IBM Plex Sans'},color:'#8890a8'},grid:{display:false}}}}});
+
+document.getElementById('facGrid').innerHTML=FACS.map(f=>`<div class="fac-card ${f.hasCrit?'hascrit':''}"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div class="fac-name">${f.name}</div><div class="fac-meta">WO# ${f.wo} · ${f.svc} · ${f.dates}</div></div><span class="badge ${BC[f.crit]}">${f.crit}</span></div><p style="font-size:11px;color:var(--txt-m)">${f.desc}</p><div class="fac-stats"><div><div class="fsl">Wells</div><div class="fsv">${f.wells}</div></div><div><div class="fsl">Monitored DMLs</div><div class="fsv">${f.dmls}</div></div></div>${f.hasCrit?'<div style="margin-top:10px;padding:8px 10px;background:var(--crit-bg);border:1px solid var(--crit-border);border-radius:4px;font-size:11px;color:var(--crit);font-weight:600">⚠ Critical alert — Devon PIC notification required</div>':''}</div>`).join('');
+
+function renderTable(data){document.getElementById('tblBody').innerHTML=data.map(w=>`<tr><td style="font-size:11px">${w.fac}</td><td class="mono" style="font-size:11px;color:var(--txt-m)">${w.wo}</td><td><strong>${w.well}</strong></td><td style="font-size:11px">${w.date}</td><td style="font-size:11px;color:var(--txt-m)">${w.svc}</td><td class="mono" style="text-align:center">${w.mon}</td><td><span class="badge ${BC[w.crit]}">${w.crit}</span></td><td>${w.flag?'<span class="badge bc">⚠ Critical</span>':''}${w.isNew?'<span class="badge bn" style="margin-left:3px">New</span>':''}</td></tr>`).join('');document.getElementById('rowCnt').textContent=`Showing ${data.length} of ${WELLS.length} records`;}
+function filterData(){const t=document.getElementById('searchIn').value.toLowerCase();const c=document.getElementById('critFilt').value;const f=document.getElementById('facFilt').value;renderTable(WELLS.filter(w=>(!t||w.fac.toLowerCase().includes(t)||w.well.toLowerCase().includes(t))&&(!c||w.crit===c)&&(!f||w.fs.includes(f))));}
+renderTable(WELLS);
+
+const alertDMLs=[{l:'UL Loveland 5H · DML-006',v:0.084},{l:'UL Loveland 2H · DML-003',v:0.103},{l:'UL Loveland 7H · DML-006',v:0.112},{l:'Lizzy 1H · DML-013',v:0.113},{l:'Lizzy 1H · DML-010',v:0.116},{l:'Lizzy Header · DML-010',v:0.131}];
+new Chart(document.getElementById('alertChart'),{type:'bar',data:{labels:alertDMLs.map(a=>a.l),datasets:[{data:alertDMLs.map(a=>a.v),backgroundColor:alertDMLs.map(a=>a.v<0.100?'#e84040':a.v<0.110?'#f4831f':'#f0b429'),borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw.toFixed(3)+'"'}}},scales:{x:{min:0.060,max:0.160,ticks:{callback:v=>v.toFixed(3)+'"',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{font:{size:11}},grid:{display:false}}}}});
+
+new Chart(document.getElementById('baseChart'),{type:'bar',data:{labels:WELLS.map(w=>w.fs+' · '+w.well),datasets:[{data:WELLS.map(w=>w.minUT),backgroundColor:WELLS.map(w=>{const v=w.minUT;if(v<0.100)return'#e84040';if(v<0.150)return'#f4831f';if(v<0.200)return'#f0b429';return'#34c96c';}),borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>WELLS[i[0].dataIndex].fac+' — '+WELLS[i[0].dataIndex].well,label:i=>'Min UT: '+i.raw.toFixed(3)+'" ('+WELLS[i.dataIndex].crit+')'}}},scales:{x:{min:0.050,max:0.350,ticks:{callback:v=>v.toFixed(2)+'"',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{font:{size:10}},grid:{display:false}}}}});
+
+const lvDMLs=[{l:'5H·006',v:0.084},{l:'2H·003',v:0.103},{l:'7H·006',v:0.112},{l:'8H·003',v:0.135},{l:'11H',v:0.143},{l:'1H',v:0.155},{l:'N.Hdr',v:0.172},{l:'E.Hdr',v:0.187},{l:'10H',v:0.189},{l:'4H',v:0.192},{l:'6H',v:0.193}].sort((a,b)=>a.v-b.v);
+new Chart(document.getElementById('distChart'),{type:'bar',data:{labels:lvDMLs.map(d=>d.l),datasets:[{data:lvDMLs.map(d=>d.v),backgroundColor:lvDMLs.map(d=>d.v<0.100?'#e84040':d.v<0.110?'#f4831f':d.v<0.200?'#f0b429':'#34c96c'),borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw.toFixed(3)+'"'}}},scales:{x:{ticks:{font:{size:10,family:'IBM Plex Mono'},maxRotation:45},grid:{display:false}},y:{min:0.050,max:0.280,ticks:{callback:v=>v.toFixed(2)+'"',font:{size:10,family:'IBM Plex Mono'}},grid:{color:'rgba(255,255,255,0.04)'}}}}});
+
+let apiKey='';
+const SYS=`You are an Asset Integrity AI assistant for Devon Energy DBBU (Delaware Basin Business Unit). You have full context on the pipeline inspection dashboard data below.\n\nINSPECTION DATA (Nov 2024 – Jan 2025): 5 facilities, 19 wells, 167 monitored DMLs.\n\nCRITICAL: UL Loveland 5H DML-006 UT=0.084" — BELOW 0.100" threshold. Devon PIC must be notified immediately. Document misrated as Moderate; overridden per minimum wall thickness rule.\n\nNEAR-CRITICAL ALERTS (below 0.110"):\n- UL Loveland 2H DML-003: 0.103" (very close to critical)\n- UL Loveland 7H DML-006: 0.112"\n- Lizzy 26-1H 1H DML-013: 0.113"\n- Lizzy 26-1H 1H DML-010: 0.116"\n- Lizzy 26-1H Header DML-010: 0.131"\n\nFACILITIES:\n- Stray Cat 8 CTB-5 (WO 21374743): 1 well, 9 DMLs, Minor — Legacy service, Cimarron Energy, built 2024\n- Lizzy 26-1H Pad (WO 21418606): 3 wells, 31 DMLs, Severe — Mistras Group, Oct 2024\n- Ren State 13-14A Pad (WO 21422193): 1 well, 3 DMLs, Moderate — Mistras Group, Jan 2025\n- UL Loveland 1920-17-1H Pad (WO 21427023): 11 wells, 79 DMLs, Critical — Mistras Group, Dec 2024–Jan 2025, Parker Welding, built 2018\n- UL Cathedral 1516-17H Pad (WO 21390346): 3 wells, 75 DMLs, Moderate/Minor — Mistras, Nov–Dec 2024, Parker Welding, built 2020\n\nGRADING: Critical <0.100" (notify PIC), Severe 51%+ wall loss, Moderate 26-50%, Minor 0-25%\nSERVICE INTERVAL: 6-month RT re-examination for all monitored DMLs.\n\nAnswer concisely and professionally. Always flag safety-critical items.`;
+
+function saveKey(){apiKey=document.getElementById('apiKeyIn').value.trim();document.getElementById('keyStat').textContent=apiKey?'✓ Connected':'';document.getElementById('apiKeyIn').value='';}
+function usePrompt(el){document.getElementById('chatIn').value=el.textContent;document.getElementById('chatIn').focus();}
+function addMsg(role,content){const d=document.createElement('div');d.className='msg '+role;d.innerHTML=`<div class="msg-av">${role==='assistant'?'AI':'You'}</div><div class="msg-bbl">${content.replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>`;const c=document.getElementById('chatMsgs');c.appendChild(d);c.scrollTop=c.scrollHeight;}
+const hist=[];
+async function sendMsg(){
+  const inp=document.getElementById('chatIn');const txt=inp.value.trim();
+  if(!txt)return;
+  if(!apiKey){addMsg('assistant','Please enter your Anthropic API key above to activate the AI assistant.');return;}
+  addMsg('user',txt);inp.value='';hist.push({role:'user',content:txt});
+  const btn=document.getElementById('sendBtn');btn.disabled=true;btn.textContent='...';
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-calls':'true'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:SYS,messages:hist})});
+    const data=await res.json();
+    if(data.content&&data.content[0]){const reply=data.content[0].text;addMsg('assistant',reply);hist.push({role:'assistant',content:reply});}
+    else{addMsg('assistant','Error: '+(data.error?.message||'Check your API key and try again.'));}
+  }catch(e){addMsg('assistant','Connection error. Ensure your API key is valid.');}
+  btn.disabled=false;btn.textContent='Send';
+}
+document.getElementById('chatIn').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+</script>
+</body>
+</html>
