@@ -1,0 +1,8 @@
+{
+  "name": "asset-integrity-api",
+  "version": "1.0.0",
+  "description": "Devon Energy Asset Integrity Dashboard - Backend API proxy",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
