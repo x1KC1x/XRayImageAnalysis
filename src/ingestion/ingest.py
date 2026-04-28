@@ -6,6 +6,9 @@ and loads them into the XRayImageAnalysis SQL Server database.
 Target DB:  AZUMSDBSQ070D
 Database:   XRayImageAnalysis
 Run on:     AZUMSAPSD101D
+
+v1.1 — Adds support for FacilityInstallDate and FacilityActivationDate
+       (sourced from Snowflake/SiteView when available)
 """
 
 import os
@@ -40,9 +43,7 @@ SQL_DRIVER   = os.getenv("SQL_DRIVER",   "ODBC Driver 17 for SQL Server")
 PROCESSED_FOLDER = Path(os.getenv("OUTPUT_FOLDER", "data/processed"))
 
 
-# ── Database connection ────────────────────────────────────────────────────
 def get_connection():
-    """Connect using Windows Auth (Trusted) or SQL Auth depending on .env."""
     if SQL_USERNAME and SQL_USERNAME not in ("<pending>", "xsvcimageextract"):
         conn_str = (
             "DRIVER={{{}}};SERVER={};DATABASE={};UID={};PWD={}".format(
@@ -50,7 +51,6 @@ def get_connection():
             )
         )
     else:
-        # Windows Authentication — uses the account running the script
         conn_str = (
             "DRIVER={{{}}};SERVER={};DATABASE={};Trusted_Connection=yes".format(
                 SQL_DRIVER, SQL_SERVER, SQL_DATABASE
@@ -59,9 +59,7 @@ def get_connection():
     return pyodbc.connect(conn_str)
 
 
-# ── Helper: safe value conversion ─────────────────────────────────────────
 def safe_int(val):
-    """Convert value to int safely, return None if not possible."""
     if val is None:
         return None
     try:
@@ -71,7 +69,6 @@ def safe_int(val):
 
 
 def safe_float(val):
-    """Convert value to float safely, return None if not possible."""
     if val is None:
         return None
     try:
@@ -81,7 +78,6 @@ def safe_float(val):
 
 
 def safe_bit(val):
-    """Convert value to bit (0/1) safely."""
     if val is None:
         return None
     if isinstance(val, bool):
@@ -94,7 +90,6 @@ def safe_bit(val):
 
 
 def safe_str(val, max_len=None):
-    """Convert value to string safely, truncate if needed."""
     if val is None:
         return None
     s = str(val).strip()
@@ -103,9 +98,28 @@ def safe_str(val, max_len=None):
     return s if s else None
 
 
-# ── Check for duplicate inspection ────────────────────────────────────────
+def safe_date(val):
+    """Convert various date formats to a date object. Returns None if invalid."""
+    if val is None or val == "":
+        return None
+    if isinstance(val, datetime):
+        return val.date()
+    s = str(val).strip()
+    formats = [
+        "%Y-%m-%d", "%m/%d/%Y", "%m-%d-%Y", "%Y/%m/%d",
+        "%Y%m%d", "%d-%b-%Y", "%B %d, %Y", "%b %d, %Y",
+        "%Y-%m-%dT%H:%M:%S",
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    log.warning("Could not parse date: {}".format(s))
+    return None
+
+
 def inspection_exists(cursor, source_file):
-    """Check if this file has already been ingested."""
     cursor.execute(
         "SELECT InspectionID FROM Inspections WHERE SourceFile = ?",
         source_file
@@ -114,7 +128,6 @@ def inspection_exists(cursor, source_file):
     return row[0] if row else None
 
 
-# ── Insert Inspection (header) ─────────────────────────────────────────────
 def insert_inspection(cursor, header, meta):
     """Insert header data into Inspections table. Returns new InspectionID."""
     sql = """
@@ -126,7 +139,8 @@ def insert_inspection(cursor, header, meta):
         ExposureCount, ExposureTime, FramesPerSecond, SourceToDDA,
         DMLCount, CriteriaSummary, CriteriaPercentage,
         DMLMonitorRecs, TimeInterval, ReviewerName, ReviewerDate,
-        SourceFile, ExtractedAt
+        SourceFile, ExtractedAt,
+        FacilityInstallDate, FacilityActivationDate
     ) VALUES (
         ?, ?, ?, ?, ?,
         ?, ?, ?, ?, ?,
@@ -135,6 +149,7 @@ def insert_inspection(cursor, header, meta):
         ?, ?, ?, ?,
         ?, ?, ?,
         ?, ?, ?, ?,
+        ?, ?,
         ?, ?
     )
     """
@@ -181,18 +196,16 @@ def insert_inspection(cursor, header, meta):
         safe_str(header.get("reviewer_date"), 20),
         safe_str(meta.get("source_file"), 500),
         extracted_at,
+        safe_date(header.get("facility_install_date")),
+        safe_date(header.get("facility_activation_date")),
     )
 
     cursor.execute(sql, params)
-
-    # Get the new InspectionID
     cursor.execute("SELECT @@IDENTITY")
     return int(cursor.fetchone()[0])
 
 
-# ── Insert DML Measurements ────────────────────────────────────────────────
 def insert_dmls(cursor, inspection_id, dmls):
-    """Insert all DML rows for this inspection."""
     sql = """
     INSERT INTO DML_Measurements (
         InspectionID, DMLNumber, DMNumber, Circuit,
@@ -205,8 +218,6 @@ def insert_dmls(cursor, inspection_id, dmls):
     for d in dmls:
         mwt = safe_float(d.get("min_wall_thickness"))
         critical = safe_bit(d.get("critical_flag"))
-
-        # Override critical flag if min wall thickness is below threshold
         if mwt is not None and mwt < 0.100:
             critical = 1
 
@@ -233,10 +244,8 @@ def insert_dmls(cursor, inspection_id, dmls):
     return count
 
 
-# ── Insert or get Part ─────────────────────────────────────────────────────
 def get_or_create_part(cursor, facility, well, dml_number, dm_number,
                        part_type, description, size, schedule):
-    """Find existing part or create new one. Returns PartID."""
     cursor.execute(
         """SELECT PartID FROM Parts
            WHERE FacilityName = ? AND WellNo = ?
@@ -265,9 +274,7 @@ def get_or_create_part(cursor, facility, well, dml_number, dm_number,
     return int(cursor.fetchone()[0])
 
 
-# ── Insert Thickness History ───────────────────────────────────────────────
 def insert_thickness_history(cursor, inspection_id, header, dmls):
-    """Insert time-series thickness records for predictive analysis."""
     facility = safe_str(header.get("facility_name"), 150)
     well = safe_str(header.get("well_no"), 100)
     exam_date = safe_str(header.get("examination_date"), 50)
@@ -279,9 +286,7 @@ def insert_thickness_history(cursor, inspection_id, header, dmls):
             continue
 
         part_id = get_or_create_part(
-            cursor,
-            facility,
-            well,
+            cursor, facility, well,
             safe_str(d.get("dml_number"), 20),
             safe_str(d.get("dm_number"), 20),
             safe_str(d.get("part_type"), 100),
@@ -298,9 +303,7 @@ def insert_thickness_history(cursor, inspection_id, header, dmls):
                 UTThickness, RTThickness, MinWallThickness,
                 Criteria, CriticalFlag)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            part_id,
-            inspection_id,
-            exam_date,
+            part_id, inspection_id, exam_date,
             safe_float(d.get("ut_thickness")),
             safe_float(d.get("rt_thickness")),
             mwt,
@@ -311,9 +314,7 @@ def insert_thickness_history(cursor, inspection_id, header, dmls):
     return count
 
 
-# ── Process a single JSON file ─────────────────────────────────────────────
 def process_json_file(conn, json_path):
-    """Load one extracted JSON file into the database."""
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -327,27 +328,22 @@ def process_json_file(conn, json_path):
 
     cursor = conn.cursor()
 
-    # Check for duplicate
     existing_id = inspection_exists(cursor, source_file)
     if existing_id:
         log.warning("SKIP (already ingested): {} [InspectionID={}]".format(
             source_file, existing_id))
         return False
 
-    # Insert header
     inspection_id = insert_inspection(cursor, header, meta)
     log.info("  Inserted Inspection ID {}: {} | {}".format(
         inspection_id, facility, well))
 
-    # Insert DML measurements
     dml_count = insert_dmls(cursor, inspection_id, dmls)
     log.info("  Inserted {} DML measurements".format(dml_count))
 
-    # Insert parts + thickness history
     hist_count = insert_thickness_history(cursor, inspection_id, header, dmls)
     log.info("  Inserted {} thickness history records".format(hist_count))
 
-    # Flag critical alerts
     critical_dmls = [d for d in dmls
                      if (d.get("min_wall_thickness") or 9) < 0.100
                      or d.get("critical_flag")]
@@ -364,7 +360,6 @@ def process_json_file(conn, json_path):
     return True
 
 
-# ── Main ───────────────────────────────────────────────────────────────────
 def run():
     json_files = sorted(PROCESSED_FOLDER.glob("*.json"))
     if not json_files:
